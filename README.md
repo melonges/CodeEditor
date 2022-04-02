@@ -1,5 +1,5 @@
 # CodeVilla (Real-time Code Editor)
-## Full-Stack Web Application
+## Full-Stack Web Application using React, Node Js, Web sockets
 
 ### [DEMO](https://codevilla.herokuapp.com/)
 
