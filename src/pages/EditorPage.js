@@ -8,16 +8,14 @@ import {
     useLocation,
     useNavigate,
     Navigate,
-    useParams,
 } from 'react-router-dom';
 
 const EditorPage = () => {
     const socketRef = useRef(null);
     const codeRef = useRef(null);
     const location = useLocation();
-    const { roomId } = useParams();
     const reactNavigator = useNavigate();
-    const [clients, setClients] = useState([]);
+    const [clients, setClients] = useState([location.state?.username]);
 
     useEffect(() => {
         const init = async () => {
@@ -32,34 +30,31 @@ const EditorPage = () => {
             }
 
             socketRef.current.emit(ACTIONS.JOIN, {
-                roomId,
                 username: location.state?.username,
             });
 
             // Listening for joined event
             socketRef.current.on(
                 ACTIONS.JOINED,
-                ({ clients, username, socketId }) => {
+                ({ username }) => {
                     if (username !== location.state?.username) {
                         toast.success(`${username} joined the room.`);
                         console.log(`${username} joined`);
+                        setClients(username);
                     }
-                    setClients(clients);
-                    socketRef.current.emit(ACTIONS.SYNC_CODE, {
-                        code: codeRef.current,
-                        socketId,
-                    });
+
+
                 }
             );
 
             // Listening for disconnected
             socketRef.current.on(
                 ACTIONS.DISCONNECTED,
-                ({ socketId, username }) => {
+                ({  username }) => {
                     toast.success(`${username} left the room.`);
                     setClients((prev) => {
                         return prev.filter(
-                            (client) => client.socketId !== socketId
+                            u => u !== u
                         );
                     });
                 }
@@ -73,15 +68,7 @@ const EditorPage = () => {
         };
     }, []);
 
-    async function copyRoomId() {
-        try {
-            await navigator.clipboard.writeText(roomId);
-            toast.success('Room ID has been copied to your clipboard');
-        } catch (err) {
-            toast.error('Could not copy the Room ID');
-            console.error(err);
-        }
-    }
+
 
     function leaveRoom() {
         reactNavigator('/');
@@ -96,22 +83,20 @@ const EditorPage = () => {
             <div className="aside">
                 <div className="asideInner">
                     <div className="logo">
-                        <h1>CodeVilla
+                        <h1>Code
                         </h1>
                     </div>
                     <h3>Connected</h3>
                     <div className="clientsList">
-                        {clients.map((client) => (
+                        {clients.map(username => (
                             <Client
-                                key={client.socketId}
-                                username={client.username}
+                                key={username}
+                                username={username}
                             />
                         ))}
                     </div>
                 </div>
-                <button className="btn copyBtn" onClick={copyRoomId}>
-                    Copy ROOM ID
-                </button>
+
                 <button className="btn leaveBtn" onClick={leaveRoom}>
                     Leave
                 </button>
@@ -119,7 +104,6 @@ const EditorPage = () => {
             <div className="editorWrap">
                 <Editor
                     socketRef={socketRef}
-                    roomId={roomId}
                     onCodeChange={(code) => {
                         codeRef.current = code;
                     }}

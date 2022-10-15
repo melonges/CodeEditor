@@ -14,53 +14,34 @@ app.use((req, res, next) => {
 });
 
 const userSocketMap = {};
-function getAllConnectedClients(roomId) {
-    // Map
-    return Array.from(io.sockets.adapter.rooms.get(roomId) || []).map(
-        (socketId) => {
-            return {
-                socketId,
-                username: userSocketMap[socketId],
-            };
-        }
-    );
-}
+let freshCode = "";
 
 io.on('connection', (socket) => {
     console.log('socket connected', socket.id);
 
-    socket.on(ACTIONS.JOIN, ({ roomId, username }) => {
+    socket.on(ACTIONS.JOIN, ({username }) => {
         userSocketMap[socket.id] = username;
-        socket.join(roomId);
-        const clients = getAllConnectedClients(roomId);
-        clients.forEach(({ socketId }) => {
-            io.to(socketId).emit(ACTIONS.JOINED, {
-                clients,
+            io.emit(ACTIONS.JOINED, {
                 username,
-                socketId: socket.id,
             });
-        });
+            socket.emit(ACTIONS.CODE_CHANGE, {code: freshCode})
     });
 
-    socket.on(ACTIONS.CODE_CHANGE, ({ roomId, code }) => {
-        socket.in(roomId).emit(ACTIONS.CODE_CHANGE, { code });
+    socket.on(ACTIONS.CODE_CHANGE, ({ code }) => {
+        io.emit(ACTIONS.CODE_CHANGE, { code });
+        freshCode = code;
     });
 
-    socket.on(ACTIONS.SYNC_CODE, ({ socketId, code }) => {
-        io.to(socketId).emit(ACTIONS.CODE_CHANGE, { code });
-    });
 
     socket.on('disconnecting', () => {
-        const rooms = [...socket.rooms];
-        rooms.forEach((roomId) => {
-            socket.in(roomId).emit(ACTIONS.DISCONNECTED, {
-                socketId: socket.id,
+        io.emit(ACTIONS.DISCONNECTED, {
                 username: userSocketMap[socket.id],
             });
-        });
         delete userSocketMap[socket.id];
         socket.leave();
-    });
+        console.log("socket disconnected", socket.id);
+        });
+
 });
 
 const PORT = process.env.PORT || 5000;
